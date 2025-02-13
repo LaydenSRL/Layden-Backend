@@ -3,7 +3,7 @@ import DatosObra from '../models/Planilla.model';
 import VentanaCurvado from '../models/ventanas.model';
 
 export const createDatosObra = async (req: Request, res: Response) => {
-    const { vendedor, color, entrega, tipoDeObra, cliente, obra, direccion, localidad, ventanas } = req.body;
+    const { vendedor, color, entrega, tipoDeObra, cliente, obra, direccion, localidad, ventanas, clienteId } = req.body;
 
     try {
         const nuevaObra = await DatosObra.create({
@@ -15,6 +15,7 @@ export const createDatosObra = async (req: Request, res: Response) => {
             obra,
             direccion,
             localidad,
+            clienteId
         });
 
         if (ventanas && Array.isArray(ventanas)) {
@@ -40,9 +41,12 @@ export const createDatosObra = async (req: Request, res: Response) => {
     }
 };
 
-export const getDatosObras = async (_req: Request, res: Response) => {
+export const getDatosObras = async (req: Request, res: Response) => {
+    const { clienteId } = req.params
+    console.log(clienteId)
     try {
         const datosObras = await DatosObra.findAll({
+            where: {clienteId},
             include: [{ model: VentanaCurvado }],
             order: [['entrega', 'DESC']],
         });

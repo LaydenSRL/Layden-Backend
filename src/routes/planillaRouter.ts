@@ -10,7 +10,7 @@ import {
 const planillaRouter = Router();
 
 planillaRouter.post('/', createDatosObra);
-planillaRouter.get('/:clienteId', getDatosObras);
+planillaRouter.get('/cliente/:clienteId', getDatosObras);
 planillaRouter.get('/:id', getDatosObraById);
 planillaRouter.put('/:id', updateDatosObra);
 planillaRouter.delete('/:id', deleteDatosObra);

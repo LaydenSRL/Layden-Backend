@@ -78,22 +78,39 @@ export const updateDatosObra = async (req: Request, res: Response) => {
     const { ventanas, ...datosObraData } = req.body;
 
     try {
-        const datosObra = await DatosObra.findByPk(id);
+        const datosObra = await DatosObra.findByPk(id, {
+            include: [{ model: VentanaCurvado }],
+        });
 
         if (!datosObra) {
             return res.status(404).json({ error: 'Datos de obra no encontrados' });
         }
 
+        // Actualizar datos de la obra
         await datosObra.update(datosObraData);
 
         if (ventanas && Array.isArray(ventanas)) {
+            const ventanasExistentes = await VentanaCurvado.findAll({ where: { datosObraId: id } });
+
+            // Obtener los IDs de las ventanas enviadas desde el frontend
+            const idsVentanasEnviadas = ventanas.map((ventana) => ventana.id).filter(Boolean);
+
+            // Eliminar ventanas que ya no están en la actualización
+            const ventanasAEliminar = ventanasExistentes.filter((ventana) => !idsVentanasEnviadas.includes(ventana.id));
+            await VentanaCurvado.destroy({
+                where: { id: ventanasAEliminar.map((ventana) => ventana.id) },
+            });
+
+            // Procesar las ventanas enviadas
             for (const ventana of ventanas) {
                 if (ventana.id) {
+                    // Si la ventana ya existe, la actualizamos
                     const ventanaExistente = await VentanaCurvado.findByPk(ventana.id);
                     if (ventanaExistente) {
                         await ventanaExistente.update(ventana);
                     }
                 } else {
+                    // Si no tiene ID, es una nueva ventana y la creamos
                     await VentanaCurvado.create({
                         ...ventana,
                         datosObraId: datosObra.id,
@@ -102,11 +119,17 @@ export const updateDatosObra = async (req: Request, res: Response) => {
             }
         }
 
-        res.status(200).json(datosObra);
+        res.status(200).json({
+            success: true,
+            message: 'Obra actualizada exitosamente',
+            data: datosObra,
+        });
     } catch (error) {
+        console.error('Error al actualizar datos de la obra:', error);
         res.status(500).json({ error: 'Error al actualizar datos de la obra' });
     }
 };
+
 
 export const deleteDatosObra = async (req: Request, res: Response) => {
     const { id } = req.params;

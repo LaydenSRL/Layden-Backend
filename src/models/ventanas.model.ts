@@ -11,6 +11,9 @@ class VentanaCurvado extends Model {
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare datosObraId: number;
 
+  @Column({ type: DataType.STRING, allowNull: false })
+  declare denominacion: string;
+
   @Column({ type: DataType.FLOAT, allowNull: false })
   declare ancho: number;
 

@@ -86,34 +86,41 @@ export const updateDatosObra = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Datos de obra no encontrados' });
         }
 
-        // Actualizar datos de la obra
+        // Actualizar los datos de la obra
         await datosObra.update(datosObraData);
 
         if (ventanas && Array.isArray(ventanas)) {
-            const ventanasExistentes = await VentanaCurvado.findAll({ where: { datosObraId: id } });
-
-            // Obtener los IDs de las ventanas enviadas desde el frontend
-            const idsVentanasEnviadas = ventanas.map((ventana) => ventana.id).filter(Boolean);
-
-            // Eliminar ventanas que ya no están en la actualización
-            const ventanasAEliminar = ventanasExistentes.filter((ventana) => !idsVentanasEnviadas.includes(ventana.id));
-            await VentanaCurvado.destroy({
-                where: { id: ventanasAEliminar.map((ventana) => ventana.id) },
+            // Obtener todas las ventanas actuales de la obra
+            const ventanasExistentes = await VentanaCurvado.findAll({
+                where: { datosObraId: id },
             });
 
-            // Procesar las ventanas enviadas
+            // Extraer los IDs de las ventanas existentes en la BD
+            const idsVentanasExistentes = ventanasExistentes.map((ventana) => ventana.id);
+
+            // Extraer los IDs de las ventanas enviadas desde el frontend
+            const idsVentanasEnviadas = ventanas.map((ventana) => ventana.id).filter(Boolean);
+
+            // 1. **Eliminar ventanas que ya no están en la actualización**
+            const ventanasAEliminar = ventanasExistentes.filter((ventana) => !idsVentanasEnviadas.includes(ventana.id));
+            if (ventanasAEliminar.length > 0) {
+                await VentanaCurvado.destroy({
+                    where: { id: ventanasAEliminar.map((ventana) => ventana.id) },
+                });
+            }
+
+            // 2. **Actualizar o crear ventanas**
             for (const ventana of ventanas) {
-                if (ventana.id) {
-                    // Si la ventana ya existe, la actualizamos
-                    const ventanaExistente = await VentanaCurvado.findByPk(ventana.id);
-                    if (ventanaExistente) {
-                        await ventanaExistente.update(ventana);
-                    }
-                } else {
+                if (ventana.id && idsVentanasExistentes.includes(ventana.id)) {
+                    // Si la ventana ya existe en la BD, la actualizamos
+                    await VentanaCurvado.update(ventana, {
+                        where: { id: ventana.id },
+                    });
+                } else if (!ventana.id) {
                     // Si no tiene ID, es una nueva ventana y la creamos
                     await VentanaCurvado.create({
                         ...ventana,
-                        datosObraId: datosObra.id,
+                        datosObraId: datosObra.id, // Asegurar la relación correcta
                     });
                 }
             }

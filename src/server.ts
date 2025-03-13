@@ -19,7 +19,7 @@ const app = express();
 const corsOptions: CorsOptions = {
     origin: function (origin, callback) {
         console.log('Origen de la solicitud:', origin);
-        if (origin === 'http://localhost:5173' || !origin || origin === 'https:/layden.vercel.app') {
+        if (origin === 'http://localhost:5173' || origin === 'https:/layden.vercel.app') {
             callback(null, true);
         } else {
             callback(new Error('Error de Cors'));

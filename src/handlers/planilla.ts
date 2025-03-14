@@ -86,28 +86,23 @@ export const updateDatosObra = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Datos de obra no encontrados' });
         }
 
-        // 1️⃣ **Actualizar los datos de la obra**
         await datosObra.update(datosObraData);
 
         if (ventanas && Array.isArray(ventanas)) {
-            // 2️⃣ **Obtener las ventanas existentes por denominación**
             const ventanasExistentes = await VentanaCurvado.findAll({
                 where: { datosObraId: id },
             });
 
-            // 3️⃣ **Convertir a un objeto para búsqueda rápida por denominación**
             const ventanasMap = new Map(
                 ventanasExistentes.map((ventana) => [ventana.denominacion, ventana])
             );
 
             for (const ventana of ventanas) {
                 if (ventanasMap.has(ventana.denominacion)) {
-                    // 🔹 **Si la denominación ya existe, actualizamos**
                     await VentanaCurvado.update(ventana, {
                         where: { id: ventanasMap.get(ventana.denominacion).id },
                     });
                 } else {
-                    // 🔹 **Si la denominación no existe, creamos la ventana**
                     await VentanaCurvado.create({
                         ...ventana,
                         datosObraId: datosObra.id,
@@ -115,7 +110,6 @@ export const updateDatosObra = async (req: Request, res: Response) => {
                 }
             }
 
-            // 4️⃣ **Eliminar ventanas que ya no están en la nueva lista**
             const denominacionesNuevas = ventanas.map((v) => v.denominacion);
             const ventanasAEliminar = ventanasExistentes.filter(
                 (v) => !denominacionesNuevas.includes(v.denominacion)

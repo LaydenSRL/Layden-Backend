@@ -19,7 +19,7 @@ const app = express();
 const corsOptions: CorsOptions = {
     origin: function (origin, callback) {
         console.log('Origen de la solicitud:', origin);
-        if (origin === 'http://localhost:5173' || origin === 'https://layden.vercel.app') {
+        if (origin === 'http://localhost:5173' || origin === 'https://layden.vercel.app' || origin === 'https://layden-backend.vercel.app') {
             callback(null, true);
         } else {
             callback(new Error('Error de Cors'));
@@ -35,7 +35,6 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use('/api/planilla', planillaRouter)
-
 
 const PORT = 3000;
 app.listen(PORT, () => {

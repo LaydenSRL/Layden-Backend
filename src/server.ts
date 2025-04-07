@@ -16,17 +16,23 @@ connectDB();
 
 const app = express();
 
+const allowed_origins = [
+    'http://localhost:5173',
+    'https://layden.vercel.app',
+    'https://layden-backend.vercel.app',
+];
+
 const corsOptions: CorsOptions = {
     origin: function (origin, callback) {
         console.log('Origen de la solicitud:', origin);
-        if (origin === 'http://localhost:5173' || origin === 'https://layden.vercel.app' || origin === 'https://layden-backend.vercel.app') {
+        if (!origin || allowed_origins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
             callback(new Error('Error de Cors'));
         }
     },
     methods: 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    allowedHeaders: 'Content-Type, Authorization',
+    allowedHeaders: ['Content-Type, Authorization'],
     credentials: true,
 };
 

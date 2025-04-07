@@ -42,16 +42,22 @@ export const createDatosObra = async (req: Request, res: Response) => {
 };
 
 export const getDatosObras = async (req: Request, res: Response) => {
-    const { clienteId } = req.params
-    console.log(clienteId)
+    const { clienteId } = req.params;
+    console.log("📥 ID del cliente recibido:", clienteId);
+
     try {
         const datosObras = await DatosObra.findAll({
-            where: {clienteId},
+            where: { clienteId },
             include: [{ model: VentanaCurvado }],
             order: [['entrega', 'DESC']],
         });
+
+        console.log("✅ Obras encontradas:", datosObras.length);
         res.status(200).json(datosObras);
-    } catch (error) {
+    } catch (error: any) {
+        console.error("❌ Error al obtener datos de obras:");
+        console.error("Mensaje:", error.message);
+        console.error("Stack:", error.stack);
         res.status(500).json({ error: 'Error al obtener datos de obras' });
     }
 };

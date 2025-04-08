@@ -1,39 +1,66 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabaseConfig';
 
-// ✅ Crear obra + ventanas
 export const createDatosObra = async (req: Request, res: Response) => {
-    const { vendedor, color, entrega, tipoDeObra, cliente, obra, direccion, localidad, ventanas, clienteId } = req.body;
+    const {
+        vendedor,
+        color,
+        entrega,
+        tipoDeObra,
+        cliente,
+        obra,
+        direccion,
+        localidad,
+        ventanas,
+        clienteId
+    } = req.body;
+
+    const timestamp = new Date().toISOString();
 
     try {
-        const { data: nuevaObra, error: errorObra } = await supabase
+        // 1. Crear obra principal
+        const { data: obraCreada, error: obraError } = await supabase
             .from('datos_obras')
-            .insert([
-                { vendedor, color, entrega, tipoDeObra, cliente, obra, direccion, localidad, clienteId }
-            ])
+            .insert([{
+                vendedor,
+                color,
+                entrega,
+                tipoDeObra,
+                cliente,
+                obra,
+                direccion,
+                localidad,
+                clienteId,
+                createdAt: timestamp,
+                updatedAt: timestamp
+            }])
             .select()
             .single();
 
-        if (errorObra) throw errorObra;
+        if (obraError) throw obraError;
 
+        // 2. Crear ventanas asociadas si existen
         if (ventanas && Array.isArray(ventanas)) {
-            const ventanasData = ventanas.map((ventana: any) => ({
+            const ventanasConObraId = ventanas.map((ventana: any) => ({
                 ...ventana,
-                datosObraId: nuevaObra.id,
+                datosObraId: obraCreada.id,
+                createdAt: timestamp,
+                updatedAt: timestamp,
             }));
 
-            const { error: errorVentanas } = await supabase
+            const { error: ventanasError } = await supabase
                 .from('ventanas_curvado')
-                .insert(ventanasData);
+                .insert(ventanasConObraId);
 
-            if (errorVentanas) throw errorVentanas;
+            if (ventanasError) throw ventanasError;
         }
 
         res.status(201).json({
             success: true,
             message: 'Obra creada exitosamente',
-            data: nuevaObra,
+            data: obraCreada,
         });
+
     } catch (error: any) {
         console.error('Error al crear datos de la obra:', error);
         res.status(500).json({
@@ -43,6 +70,7 @@ export const createDatosObra = async (req: Request, res: Response) => {
         });
     }
 };
+
 
 // ✅ Obtener obras por cliente
 export const getDatosObras = async (req: Request, res: Response) => {

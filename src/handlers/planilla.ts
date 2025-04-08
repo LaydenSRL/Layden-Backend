@@ -148,7 +148,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
             if (errorExistentes) throw errorExistentes;
 
             const existentesMap = new Map(
-                existentes.map((v: { denominacion: string; id: number }) => [v.denominacion, v])
+                existentes.map((v) => [v.denominacion, v])
             );
 
             const nuevas = [];
@@ -158,7 +158,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
                 if (existentesMap.has(ventana.denominacion)) {
                     actualizadas.push({
                         ...ventana,
-                        id: (existentesMap.get(ventana.denominacion) as { id: number }).id,
+                        id: (existentesMap.get(ventana.denominacion).id),
                     });
                 } else {
                     nuevas.push({ ...ventana, datosObraId: id });
@@ -183,7 +183,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
             // Eliminar las que fueron quitadas
             const nuevasDenominaciones = ventanas.map((v) => v.denominacion);
             const paraEliminar = existentes.filter(
-                (v: { denominacion: string }) => !nuevasDenominaciones.includes(v.denominacion)
+                (v) => !nuevasDenominaciones.includes(v.denominacion)
             );
 
             if (paraEliminar.length > 0) {

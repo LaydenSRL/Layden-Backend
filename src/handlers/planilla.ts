@@ -125,12 +125,12 @@ export const getDatosObraById = async (req: Request, res: Response) => {
     }
 };
 
-// ✅ Actualizar una obra + ventanas
 export const updateDatosObra = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { ventanas, ...datosObraData } = req.body;
 
     try {
+        // Actualizar la obra
         const { error: errorUpdateObra } = await supabase
             .from('datos_obras')
             .update(datosObraData)
@@ -139,7 +139,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
         if (errorUpdateObra) throw errorUpdateObra;
 
         if (ventanas && Array.isArray(ventanas)) {
-            // Obtener ventanas existentes
+            // Obtener las ventanas actuales en la base de datos
             const { data: existentes, error: errorExistentes } = await supabase
                 .from('ventanas_curvado')
                 .select('*')
@@ -147,50 +147,45 @@ export const updateDatosObra = async (req: Request, res: Response) => {
 
             if (errorExistentes) throw errorExistentes;
 
-            const existentesMap = new Map(
-                existentes.map((v) => [v.denominacion, v])
-            );
+            const idsActuales = existentes.map((v) => v.id);
+            const idsEnviados = ventanas.filter(v => v.id).map(v => v.id);
 
-            const nuevas = [];
-            const actualizadas = [];
-
-            for (const ventana of ventanas) {
-                if (existentesMap.has(ventana.denominacion)) {
-                    actualizadas.push({
-                        ...ventana,
-                        id: (existentesMap.get(ventana.denominacion).id),
-                    });
-                } else {
-                    nuevas.push({ ...ventana, datosObraId: id });
-                }
-            }
+            const nuevas = ventanas.filter(v => !v.id);
+            const actualizadas = ventanas.filter(v => v.id && idsActuales.includes(v.id));
+            const paraEliminar = existentes.filter(v => !idsEnviados.includes(v.id));
 
             // Actualizar ventanas existentes
             for (const v of actualizadas) {
-                await supabase
+                const { error: errorUpdate } = await supabase
                     .from('ventanas_curvado')
                     .update(v)
                     .eq('id', v.id);
+
+                if (errorUpdate) throw errorUpdate;
             }
 
-            // Insertar nuevas ventanas
+            // Insertar nuevas
             if (nuevas.length > 0) {
-                await supabase
+                const nuevasConObraId = nuevas.map(v => ({
+                    ...v,
+                    datosObraId: id,
+                }));
+
+                const { error: errorInsert } = await supabase
                     .from('ventanas_curvado')
-                    .insert(nuevas);
+                    .insert(nuevasConObraId);
+
+                if (errorInsert) throw errorInsert;
             }
 
-            // Eliminar las que fueron quitadas
-            const nuevasDenominaciones = ventanas.map((v) => v.denominacion);
-            const paraEliminar = existentes.filter(
-                (v) => !nuevasDenominaciones.includes(v.denominacion)
-            );
-
+            // Eliminar eliminadas
             if (paraEliminar.length > 0) {
-                await supabase
+                const { error: errorDelete } = await supabase
                     .from('ventanas_curvado')
                     .delete()
-                    .in('id', paraEliminar.map((v) => v.id));
+                    .in('id', paraEliminar.map(v => v.id));
+
+                if (errorDelete) throw errorDelete;
             }
         }
 

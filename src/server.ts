@@ -40,6 +40,11 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 
+app.use((req, res, next) => {
+    console.log('Origin:', req.headers.origin);
+    next();
+});
+
 app.use('/api/planilla', planillaRouter)
 
 const PORT = 3000;

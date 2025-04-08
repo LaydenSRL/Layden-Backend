@@ -88,7 +88,7 @@ export type VentanaProps =
   | OsciloProps;
 
 @Table({ tableName: 'datos_obras' })
-class DatosObra extends Model {
+class datos_obras extends Model {
   @Column({ type: DataType.INTEGER, autoIncrement: true, primaryKey: true })
   declare id: number;
 
@@ -123,4 +123,4 @@ class DatosObra extends Model {
   declare clienteId: string
 }
 
-export default DatosObra;
+export default datos_obras;

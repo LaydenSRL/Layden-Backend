@@ -3,7 +3,7 @@ import  DatosObra  from "./Planilla.model";
 import { VentanaProps } from "./Planilla.model";
 
 @Table({ tableName: 'ventanas_curvado' })
-class VentanaCurvado extends Model {
+class ventanas_curvado extends Model {
   @Column({ type: DataType.INTEGER, autoIncrement: true, primaryKey: true })
   declare id: number;
 
@@ -57,4 +57,4 @@ class VentanaCurvado extends Model {
   declare datosObra: DatosObra;
 }
 
-export default VentanaCurvado
+export default ventanas_curvado

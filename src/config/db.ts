@@ -1,11 +1,11 @@
 import { Sequelize } from "sequelize-typescript";
 import pg from 'pg'
-import { POSTGRES_DATABASE, POSTGRES_HOST, POSTGRES_PASSWORD, POSTGRES_USER } from "../config";
+import { POSTGRES_DATABASE, POSTGRES_HOST_2, POSTGRES_PASSWORD, POSTGRES_USER } from "../config";
 
 const db = new Sequelize({
     dialect: 'postgres',
     dialectModule: pg,
-    host: POSTGRES_HOST,
+    host: POSTGRES_HOST_2,
     username: POSTGRES_USER,
     password: POSTGRES_PASSWORD,
     database: POSTGRES_DATABASE,

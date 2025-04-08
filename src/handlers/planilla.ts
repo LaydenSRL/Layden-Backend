@@ -97,15 +97,29 @@ export const getDatosObraById = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     try {
-        const { data, error } = await supabase
+        // 1. Obtener la obra
+        const { data: obra, error: obraError } = await supabase
             .from('datos_obras')
-            .select('*, ventanas_curvado(*)')
+            .select('*')
             .eq('id', id)
             .single();
 
-        if (error) throw error;
+        if (obraError) throw obraError;
 
-        res.status(200).json(data);
+        // 2. Obtener las ventanas asociadas a la obra
+        const { data: ventanas, error: ventanasError } = await supabase
+            .from('ventanas_curvado')
+            .select('*')
+            .eq('datosObraId', id);
+
+        if (ventanasError) throw ventanasError;
+
+        // 3. Devolver obra + ventanas
+        res.status(200).json({
+            ...obra,
+            ventanas,
+        });
+
     } catch (error: any) {
         res.status(500).json({ error: error.message || 'Error al obtener datos de obra' });
     }

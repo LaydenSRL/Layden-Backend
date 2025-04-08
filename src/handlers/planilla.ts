@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import DatosObra from '../models/Planilla.model';
 import VentanaCurvado from '../models/ventanas.model';
+import { supabase } from '../config/supabaseConfig';
 
 export const createDatosObra = async (req: Request, res: Response) => {
     const { vendedor, color, entrega, tipoDeObra, cliente, obra, direccion, localidad, ventanas, clienteId } = req.body;
@@ -42,16 +43,23 @@ export const createDatosObra = async (req: Request, res: Response) => {
 };
 
 export const getDatosObras = async (req: Request, res: Response) => {
-    const { clienteId } = req.params
-    console.log(clienteId)
+    const { clienteId } = req.params;
+
     try {
-        const datosObras = await DatosObra.findAll({
-            where: {clienteId},
-            include: [{ model: VentanaCurvado }],
-            order: [['entrega', 'DESC']],
-        });
-        res.status(200).json(datosObras);
+        const { data, error } = await supabase
+            .from('DatosObra')
+            .select('*, ventanacurvados(*)') // incluir ventanas
+            .eq('clienteId', clienteId)
+            .order('entrega', { ascending: false });
+
+        if (error) {
+            console.error('Error de Supabase:', error.message);
+            return res.status(500).json({ error: 'Error al obtener datos de obras desde Supabase' });
+        }
+
+        res.status(200).json(data);
     } catch (error) {
+        console.error('Error en el servidor:', error);
         res.status(500).json({ error: 'Error al obtener datos de obras' });
     }
 };

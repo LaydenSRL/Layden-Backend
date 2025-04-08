@@ -1,30 +1,32 @@
 import { Request, Response } from 'express';
-import DatosObra from '../models/Planilla.model';
-import VentanaCurvado from '../models/ventanas.model';
 import { supabase } from '../config/supabaseConfig';
 
+// ✅ Crear obra + ventanas
 export const createDatosObra = async (req: Request, res: Response) => {
     const { vendedor, color, entrega, tipoDeObra, cliente, obra, direccion, localidad, ventanas, clienteId } = req.body;
 
     try {
-        const nuevaObra = await DatosObra.create({
-            vendedor,
-            color,
-            entrega,
-            tipoDeObra,
-            cliente,
-            obra,
-            direccion,
-            localidad,
-            clienteId
-        });
+        const { data: nuevaObra, error: errorObra } = await supabase
+            .from('datos_obras')
+            .insert([
+                { vendedor, color, entrega, tipoDeObra, cliente, obra, direccion, localidad, clienteId }
+            ])
+            .select()
+            .single();
+
+        if (errorObra) throw errorObra;
 
         if (ventanas && Array.isArray(ventanas)) {
             const ventanasData = ventanas.map((ventana: any) => ({
                 ...ventana,
                 datosObraId: nuevaObra.id,
             }));
-            await VentanaCurvado.bulkCreate(ventanasData);
+
+            const { error: errorVentanas } = await supabase
+                .from('ventanas_curvado')
+                .insert(ventanasData);
+
+            if (errorVentanas) throw errorVentanas;
         }
 
         res.status(201).json({
@@ -32,7 +34,7 @@ export const createDatosObra = async (req: Request, res: Response) => {
             message: 'Obra creada exitosamente',
             data: nuevaObra,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error al crear datos de la obra:', error);
         res.status(500).json({
             success: false,
@@ -42,121 +44,146 @@ export const createDatosObra = async (req: Request, res: Response) => {
     }
 };
 
+// ✅ Obtener obras por cliente
 export const getDatosObras = async (req: Request, res: Response) => {
     const { clienteId } = req.params;
 
     try {
         const { data, error } = await supabase
             .from('datos_obras')
-            .select('*, ventanas_curvado(*)') // relacion supabase debe estar bien definida
+            .select('*, ventanas_curvado(*)')
             .eq('clienteId', clienteId)
             .order('entrega', { ascending: false });
 
-        if (error) {
-            console.error('Error de Supabase:', error.message);
-            return res.status(500).json({ error: 'Error al obtener datos de obras desde Supabase' });
-        }
+        if (error) throw error;
 
         res.status(200).json(data);
-    } catch (error) {
-        console.error('Error en el servidor:', error);
-        res.status(500).json({ error: 'Error al obtener datos de obras' });
+    } catch (error: any) {
+        console.error('Error al obtener datos de obras:', error);
+        res.status(500).json({ error: error.message || 'Error al obtener datos de obras' });
     }
 };
 
+// ✅ Obtener una obra por ID
 export const getDatosObraById = async (req: Request, res: Response) => {
     const { id } = req.params;
+
     try {
-        const datosObra = await DatosObra.findByPk(id, {
-            include: [{ model: VentanaCurvado }],
-        });
+        const { data, error } = await supabase
+            .from('datos_obras')
+            .select('*, ventanas_curvado(*)')
+            .eq('id', id)
+            .single();
 
-        if (!datosObra) {
-            return res.status(404).json({ error: 'Datos de obra no encontrados' });
-        }
+        if (error) throw error;
 
-        res.status(200).json(datosObra);
-    } catch (error) {
-        res.status(500).json({ error: 'Error al obtener datos de obra' });
+        res.status(200).json(data);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'Error al obtener datos de obra' });
     }
 };
 
+// ✅ Actualizar una obra + ventanas
 export const updateDatosObra = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { ventanas, ...datosObraData } = req.body;
 
     try {
-        const datosObra = await DatosObra.findByPk(id, {
-            include: [{ model: VentanaCurvado }],
-        });
+        const { error: errorUpdateObra } = await supabase
+            .from('datos_obras')
+            .update(datosObraData)
+            .eq('id', id);
 
-        if (!datosObra) {
-            return res.status(404).json({ error: 'Datos de obra no encontrados' });
-        }
-
-        await datosObra.update(datosObraData);
+        if (errorUpdateObra) throw errorUpdateObra;
 
         if (ventanas && Array.isArray(ventanas)) {
-            const ventanasExistentes = await VentanaCurvado.findAll({
-                where: { datosObraId: id },
-            });
+            // Obtener ventanas existentes
+            const { data: existentes, error: errorExistentes } = await supabase
+                .from('ventanas_curvado')
+                .select('*')
+                .eq('datosObraId', id);
 
-            const ventanasMap = new Map(
-                ventanasExistentes.map((ventana) => [ventana.denominacion, ventana])
+            if (errorExistentes) throw errorExistentes;
+
+            const existentesMap = new Map(
+                existentes.map((v: { denominacion: string; id: number }) => [v.denominacion, v])
             );
 
+            const nuevas = [];
+            const actualizadas = [];
+
             for (const ventana of ventanas) {
-                if (ventanasMap.has(ventana.denominacion)) {
-                    await VentanaCurvado.update(ventana, {
-                        where: { id: ventanasMap.get(ventana.denominacion).id },
+                if (existentesMap.has(ventana.denominacion)) {
+                    actualizadas.push({
+                        ...ventana,
+                        id: (existentesMap.get(ventana.denominacion) as { id: number }).id,
                     });
                 } else {
-                    await VentanaCurvado.create({
-                        ...ventana,
-                        datosObraId: datosObra.id,
-                    });
+                    nuevas.push({ ...ventana, datosObraId: id });
                 }
             }
 
-            const denominacionesNuevas = ventanas.map((v) => v.denominacion);
-            const ventanasAEliminar = ventanasExistentes.filter(
-                (v) => !denominacionesNuevas.includes(v.denominacion)
+            // Actualizar ventanas existentes
+            for (const v of actualizadas) {
+                await supabase
+                    .from('ventanas_curvado')
+                    .update(v)
+                    .eq('id', v.id);
+            }
+
+            // Insertar nuevas ventanas
+            if (nuevas.length > 0) {
+                await supabase
+                    .from('ventanas_curvado')
+                    .insert(nuevas);
+            }
+
+            // Eliminar las que fueron quitadas
+            const nuevasDenominaciones = ventanas.map((v) => v.denominacion);
+            const paraEliminar = existentes.filter(
+                (v: { denominacion: string }) => !nuevasDenominaciones.includes(v.denominacion)
             );
 
-            if (ventanasAEliminar.length > 0) {
-                await VentanaCurvado.destroy({
-                    where: { id: ventanasAEliminar.map((v) => v.id) },
-                });
+            if (paraEliminar.length > 0) {
+                await supabase
+                    .from('ventanas_curvado')
+                    .delete()
+                    .in('id', paraEliminar.map((v) => v.id));
             }
         }
 
         res.status(200).json({
             success: true,
             message: 'Obra actualizada exitosamente',
-            data: datosObra,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error al actualizar datos de la obra:', error);
-        res.status(500).json({ error: 'Error al actualizar datos de la obra' });
+        res.status(500).json({ error: error.message || 'Error al actualizar datos de la obra' });
     }
 };
 
-
+// ✅ Eliminar obra y ventanas relacionadas
 export const deleteDatosObra = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     try {
-        const datosObra = await DatosObra.findByPk(id);
+        const { error: errorVentanas } = await supabase
+            .from('ventanas_curvado')
+            .delete()
+            .eq('datosObraId', id);
 
-        if (!datosObra) {
-            return res.status(404).json({ error: 'Datos de obra no encontrados' });
-        }
+        if (errorVentanas) throw errorVentanas;
 
-        await VentanaCurvado.destroy({ where: { datosObraId: datosObra.id } });
-        await datosObra.destroy();
+        const { error: errorObra } = await supabase
+            .from('datos_obras')
+            .delete()
+            .eq('id', id);
+
+        if (errorObra) throw errorObra;
 
         res.status(200).json({ message: 'Datos de obra eliminados correctamente' });
-    } catch (error) {
-        res.status(500).json({ error: 'Error al eliminar datos de la obra' });
+    } catch (error: any) {
+        console.error('Error al eliminar datos de la obra:', error);
+        res.status(500).json({ error: error.message || 'Error al eliminar datos de la obra' });
     }
 };

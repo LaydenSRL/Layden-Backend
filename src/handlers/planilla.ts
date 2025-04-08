@@ -1,13 +1,12 @@
 import { Request, Response } from 'express';
-import datos_obras from '../models/Planilla.model';
-import { supabase } from '../config/supabaseConfig';
-import ventanas_curvado from '../models/ventanas.model';
+import DatosObra from '../models/Planilla.model';
+import VentanaCurvado from '../models/ventanas.model';
 
 export const createDatosObra = async (req: Request, res: Response) => {
     const { vendedor, color, entrega, tipoDeObra, cliente, obra, direccion, localidad, ventanas, clienteId } = req.body;
 
     try {
-        const nuevaObra = await datos_obras.create({
+        const nuevaObra = await DatosObra.create({
             vendedor,
             color,
             entrega,
@@ -24,7 +23,7 @@ export const createDatosObra = async (req: Request, res: Response) => {
                 ...ventana,
                 datosObraId: nuevaObra.id,
             }));
-            await ventanas_curvado.bulkCreate(ventanasData);
+            await VentanaCurvado.bulkCreate(ventanasData);
         }
 
         res.status(201).json({
@@ -43,23 +42,16 @@ export const createDatosObra = async (req: Request, res: Response) => {
 };
 
 export const getDatosObras = async (req: Request, res: Response) => {
-    const { clienteId } = req.params;
-
+    const { clienteId } = req.params
+    console.log(clienteId)
     try {
-        const { data, error } = await supabase
-            .from('datos_obras')
-            .select('*, ventanas_curvado(*)') // relacion supabase debe estar bien definida
-            .eq('clienteId', clienteId)
-            .order('entrega', { ascending: false });
-
-        if (error) {
-            console.error('Error de Supabase:', error.message);
-            return res.status(500).json({ error: 'Error al obtener datos de obras desde Supabase' });
-        }
-
-        res.status(200).json(data);
+        const datosObras = await DatosObra.findAll({
+            where: {clienteId},
+            include: [{ model: VentanaCurvado }],
+            order: [['entrega', 'DESC']],
+        });
+        res.status(200).json(datosObras);
     } catch (error) {
-        console.error('Error en el servidor:', error);
         res.status(500).json({ error: 'Error al obtener datos de obras' });
     }
 };
@@ -67,8 +59,8 @@ export const getDatosObras = async (req: Request, res: Response) => {
 export const getDatosObraById = async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
-        const datosObra = await datos_obras.findByPk(id, {
-            include: [{ model: ventanas_curvado }],
+        const datosObra = await DatosObra.findByPk(id, {
+            include: [{ model: VentanaCurvado }],
         });
 
         if (!datosObra) {
@@ -86,8 +78,8 @@ export const updateDatosObra = async (req: Request, res: Response) => {
     const { ventanas, ...datosObraData } = req.body;
 
     try {
-        const datosObra = await datos_obras.findByPk(id, {
-            include: [{ model: ventanas_curvado }],
+        const datosObra = await DatosObra.findByPk(id, {
+            include: [{ model: VentanaCurvado }],
         });
 
         if (!datosObra) {
@@ -97,7 +89,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
         await datosObra.update(datosObraData);
 
         if (ventanas && Array.isArray(ventanas)) {
-            const ventanasExistentes = await ventanas_curvado.findAll({
+            const ventanasExistentes = await VentanaCurvado.findAll({
                 where: { datosObraId: id },
             });
 
@@ -107,11 +99,11 @@ export const updateDatosObra = async (req: Request, res: Response) => {
 
             for (const ventana of ventanas) {
                 if (ventanasMap.has(ventana.denominacion)) {
-                    await ventanas_curvado.update(ventana, {
+                    await VentanaCurvado.update(ventana, {
                         where: { id: ventanasMap.get(ventana.denominacion).id },
                     });
                 } else {
-                    await ventanas_curvado.create({
+                    await VentanaCurvado.create({
                         ...ventana,
                         datosObraId: datosObra.id,
                     });
@@ -124,7 +116,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
             );
 
             if (ventanasAEliminar.length > 0) {
-                await ventanas_curvado.destroy({
+                await VentanaCurvado.destroy({
                     where: { id: ventanasAEliminar.map((v) => v.id) },
                 });
             }
@@ -146,13 +138,13 @@ export const deleteDatosObra = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     try {
-        const datosObra = await datos_obras.findByPk(id);
+        const datosObra = await DatosObra.findByPk(id);
 
         if (!datosObra) {
             return res.status(404).json({ error: 'Datos de obra no encontrados' });
         }
 
-        await ventanas_curvado.destroy({ where: { datosObraId: datosObra.id } });
+        await VentanaCurvado.destroy({ where: { datosObraId: datosObra.id } });
         await datosObra.destroy();
 
         res.status(200).json({ message: 'Datos de obra eliminados correctamente' });

@@ -87,8 +87,8 @@ export type VentanaProps =
   | PuertaProps
   | OsciloProps;
 
-@Table({ tableName: 'datos_obras' })
-class datos_obras extends Model {
+@Table({ tableName: 'Obras' })
+class Obras extends Model {
   @Column({ type: DataType.INTEGER, autoIncrement: true, primaryKey: true })
   declare id: number;
 
@@ -123,4 +123,4 @@ class datos_obras extends Model {
   declare clienteId: string
 }
 
-export default datos_obras;
+export default Obras;

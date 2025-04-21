@@ -2,8 +2,8 @@ import { BelongsTo, Column, DataType, ForeignKey, Model, Table } from "sequelize
 import  DatosObra  from "./Planilla.model";
 import { VentanaProps } from "./Planilla.model";
 
-@Table({ tableName: 'ventanas_curvado' })
-class ventanas_curvado extends Model {
+@Table({ tableName: 'Ventanas' })
+class Ventanas extends Model {
   @Column({ type: DataType.INTEGER, autoIncrement: true, primaryKey: true })
   declare id: number;
 
@@ -57,4 +57,4 @@ class ventanas_curvado extends Model {
   declare datosObra: DatosObra;
 }
 
-export default ventanas_curvado
+export default Ventanas

@@ -20,7 +20,7 @@ export const createDatosObra = async (req: Request, res: Response) => {
     try {
         // 1. Crear obra principal
         const { data: obraCreada, error: obraError } = await supabase
-            .from('datos_obras')
+            .from('Obras')
             .insert([{
                 vendedor,
                 color,
@@ -49,7 +49,7 @@ export const createDatosObra = async (req: Request, res: Response) => {
             }));
 
             const { error: ventanasError } = await supabase
-                .from('ventanas_curvado')
+                .from('Ventanas')
                 .insert(ventanasConObraId);
 
             if (ventanasError) throw ventanasError;
@@ -78,8 +78,8 @@ export const getDatosObras = async (req: Request, res: Response) => {
 
     try {
         const { data, error } = await supabase
-            .from('datos_obras')
-            .select('*, ventanas_curvado(*)')
+            .from('Obras')
+            .select('*, Ventanas(*)')
             .eq('clienteId', clienteId)
             .order('entrega', { ascending: false });
 
@@ -99,23 +99,21 @@ export const getDatosObraById = async (req: Request, res: Response) => {
     try {
         // 1. Obtener la obra
         const { data: obra, error: obraError } = await supabase
-            .from('datos_obras')
+            .from('Obras')
             .select('*')
             .eq('id', id)
             .single();
 
         if (obraError) throw obraError;
 
-        // 2. Obtener las ventanas asociadas a la obra
         const { data: ventanas, error: ventanasError } = await supabase
-            .from('ventanas_curvado')
+            .from('Ventanas')
             .select('*')
             .eq('datosObraId', id)
             .order('orden', { ascending: true });
 
         if (ventanasError) throw ventanasError;
 
-        // 3. Devolver obra + ventanas
         res.status(200).json({
             ...obra,
             ventanas,
@@ -133,7 +131,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
     try {
         // Actualizar la obra
         const { error: errorUpdateObra } = await supabase
-            .from('datos_obras')
+            .from('Obras')
             .update(datosObraData)
             .eq('id', id);
 
@@ -142,7 +140,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
         if (ventanas && Array.isArray(ventanas)) {
             // Obtener las ventanas actuales en la base de datos
             const { data: existentes, error: errorExistentes } = await supabase
-                .from('ventanas_curvado')
+                .from('Ventanas')
                 .select('*')
                 .eq('datosObraId', id);
 
@@ -158,7 +156,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
             // Actualizar ventanas existentes
             for (const v of actualizadas) {
                 const { error: errorUpdate } = await supabase
-                    .from('ventanas_curvado')
+                    .from('Ventanas')
                     .update(v)
                     .eq('id', v.id);
 
@@ -173,7 +171,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
                 }));
 
                 const { error: errorInsert } = await supabase
-                    .from('ventanas_curvado')
+                    .from('Ventanas')
                     .insert(nuevasConObraId);
 
                 if (errorInsert) throw errorInsert;
@@ -182,7 +180,7 @@ export const updateDatosObra = async (req: Request, res: Response) => {
             // Eliminar eliminadas
             if (paraEliminar.length > 0) {
                 const { error: errorDelete } = await supabase
-                    .from('ventanas_curvado')
+                    .from('Ventanas')
                     .delete()
                     .in('id', paraEliminar.map(v => v.id));
 
@@ -206,14 +204,14 @@ export const deleteDatosObra = async (req: Request, res: Response) => {
 
     try {
         const { error: errorVentanas } = await supabase
-            .from('ventanas_curvado')
+            .from('Ventanas')
             .delete()
             .eq('datosObraId', id);
 
         if (errorVentanas) throw errorVentanas;
 
         const { error: errorObra } = await supabase
-            .from('datos_obras')
+            .from('Obras')
             .delete()
             .eq('id', id);
 

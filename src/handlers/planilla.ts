@@ -110,7 +110,8 @@ export const getDatosObraById = async (req: Request, res: Response) => {
         const { data: ventanas, error: ventanasError } = await supabase
             .from('ventanas_curvado')
             .select('*')
-            .eq('datosObraId', id);
+            .eq('datosObraId', id)
+            .order('orden', { ascending: true });
 
         if (ventanasError) throw ventanasError;
 

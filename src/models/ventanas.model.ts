@@ -41,6 +41,9 @@ class Ventanas extends Model {
   @Column({ type: DataType.FLOAT, allowNull: false })
   declare ml: number;
 
+  @Column({ type: DataType.FLOAT, allowNull: false })
+  declare orden: number;
+
   @Column({ type: DataType.TEXT })
   declare observaciones: string;
 

@@ -18,7 +18,6 @@ export const createDatosObra = async (req: Request, res: Response) => {
     const timestamp = new Date().toISOString();
 
     try {
-        // 1. Crear obra principal
         const { data: obraCreada, error: obraError } = await supabase
             .from('Obras')
             .insert([{
@@ -39,7 +38,6 @@ export const createDatosObra = async (req: Request, res: Response) => {
 
         if (obraError) throw obraError;
 
-        // 2. Crear ventanas asociadas si existen
         if (ventanas && Array.isArray(ventanas)) {
             const ventanasConObraId = ventanas.map((ventana: any) => ({
                 ...ventana,
@@ -71,8 +69,6 @@ export const createDatosObra = async (req: Request, res: Response) => {
     }
 };
 
-
-// ✅ Obtener obras por cliente
 export const getDatosObras = async (req: Request, res: Response) => {
     const { clienteId } = req.params;
 
@@ -92,12 +88,10 @@ export const getDatosObras = async (req: Request, res: Response) => {
     }
 };
 
-// ✅ Obtener una obra por ID
 export const getDatosObraById = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     try {
-        // 1. Obtener la obra
         const { data: obra, error: obraError } = await supabase
             .from('Obras')
             .select('*')
@@ -129,7 +123,6 @@ export const updateDatosObra = async (req: Request, res: Response) => {
     const { ventanas, ...datosObraData } = req.body;
 
     try {
-        // Actualizar la obra
         const { error: errorUpdateObra } = await supabase
             .from('Obras')
             .update(datosObraData)
@@ -138,7 +131,6 @@ export const updateDatosObra = async (req: Request, res: Response) => {
         if (errorUpdateObra) throw errorUpdateObra;
 
         if (ventanas && Array.isArray(ventanas)) {
-            // Obtener las ventanas actuales en la base de datos
             const { data: existentes, error: errorExistentes } = await supabase
                 .from('Ventanas')
                 .select('*')
@@ -153,7 +145,6 @@ export const updateDatosObra = async (req: Request, res: Response) => {
             const actualizadas = ventanas.filter(v => v.id && idsActuales.includes(v.id));
             const paraEliminar = existentes.filter(v => !idsEnviados.includes(v.id));
 
-            // Actualizar ventanas existentes
             for (const v of actualizadas) {
                 const { error: errorUpdate } = await supabase
                     .from('Ventanas')
@@ -163,7 +154,6 @@ export const updateDatosObra = async (req: Request, res: Response) => {
                 if (errorUpdate) throw errorUpdate;
             }
 
-            // Insertar nuevas
             if (nuevas.length > 0) {
                 const nuevasConObraId = nuevas.map(v => ({
                     ...v,
@@ -177,7 +167,6 @@ export const updateDatosObra = async (req: Request, res: Response) => {
                 if (errorInsert) throw errorInsert;
             }
 
-            // Eliminar eliminadas
             if (paraEliminar.length > 0) {
                 const { error: errorDelete } = await supabase
                     .from('Ventanas')
@@ -198,7 +187,6 @@ export const updateDatosObra = async (req: Request, res: Response) => {
     }
 };
 
-// ✅ Eliminar obra y ventanas relacionadas
 export const deleteDatosObra = async (req: Request, res: Response) => {
     const { id } = req.params;
 

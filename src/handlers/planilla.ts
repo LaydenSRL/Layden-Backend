@@ -12,7 +12,8 @@ export const createDatosObra = async (req: Request, res: Response) => {
         direccion,
         localidad,
         ventanas,
-        clienteId
+        clienteId,
+        observacionesObras
     } = req.body;
 
     const timestamp = new Date().toISOString();
@@ -30,6 +31,7 @@ export const createDatosObra = async (req: Request, res: Response) => {
                 direccion,
                 localidad,
                 clienteId,
+                observacionesObras,
                 createdAt: timestamp,
                 updatedAt: timestamp
             }])

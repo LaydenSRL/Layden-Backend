@@ -50,6 +50,9 @@ class Ventanas extends Model {
   @Column({ type: DataType.TEXT })
   declare observacionesExtras: string;
 
+  @Column({ type: DataType.TEXT })
+  declare color: string;
+
   @Column({ type: DataType.BOOLEAN, allowNull: false })
   declare esmerilado: boolean;
 

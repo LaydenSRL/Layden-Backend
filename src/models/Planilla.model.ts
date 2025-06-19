@@ -117,7 +117,7 @@ class Obras extends Model {
   declare localidad: string;
 
   @Column({ type: DataType.TEXT, allowNull: true })
-  declare observacionesObras: string;
+  declare observacionesObra: string;
 
   @HasMany(() => VentanaCurvado)
   declare ventanas: VentanaCurvado[];

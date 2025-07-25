@@ -124,6 +124,11 @@ class Obras extends Model {
 
   @Column({ type: DataType.STRING, allowNull: false })
   declare clienteId: string
+
+  @AllowNull(true)
+  @Column({ type: DataType.DATE })
+  declare createdAt: Date | null;
+
 }
 
 export default Obras;

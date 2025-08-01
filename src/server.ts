@@ -20,6 +20,7 @@ const allowed_origins = [
     'http://localhost:5173',
     'https://layden.vercel.app',
     'https://layden-backend.vercel.app',
+    'https://layden.com.ar'
 ];
 
 const corsOptions: CorsOptions = {

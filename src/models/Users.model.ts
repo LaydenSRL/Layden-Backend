@@ -10,14 +10,14 @@ class User extends Model {
   declare nombre: string;
 
   @Column({ type: DataType.STRING, allowNull: false, unique: true })
-  declare email: string;
+  declare numero: string;
 
   @Column({ type: DataType.STRING, allowNull: false })
   declare rol: string; // ejemplo: 'admin', 'vendedor', etc.
 
   @Default(true)
-  @Column({ type: DataType.BOOLEAN })
-  declare estado: boolean;
+  @Column({ type: DataType.STRING })
+  declare estado: string;
 
   @AllowNull(true)
   @Column({ type: DataType.DATE })
@@ -26,10 +26,6 @@ class User extends Model {
   @AllowNull(true)
   @Column({ type: DataType.DATE })
   declare updatedAt: Date | null;
-
-  // Si querés asociar obras al usuario:
-  @HasMany(() => Obras)
-  declare obras: Obras[];
 }
 
 export default User;

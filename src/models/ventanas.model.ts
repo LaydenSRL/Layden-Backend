@@ -1,5 +1,5 @@
-import { BelongsTo, Column, DataType, ForeignKey, Model, Table } from "sequelize-typescript";
-import  DatosObra  from "./Planilla.model";
+import { AllowNull, BelongsTo, Column, DataType, ForeignKey, Model, Table } from "sequelize-typescript";
+import DatosObra from "./Planilla.model";
 import { VentanaProps } from "./Planilla.model";
 
 @Table({ tableName: 'Ventanas' })
@@ -61,6 +61,12 @@ class Ventanas extends Model {
 
   @BelongsTo(() => DatosObra)
   declare datosObra: DatosObra;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare createdAt: Date | null;
+
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare updatedAt: Date | null;
 }
 
 export default Ventanas

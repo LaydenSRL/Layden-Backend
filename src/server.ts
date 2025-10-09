@@ -2,6 +2,7 @@ import express from "express";
 import cors, { CorsOptions } from 'cors';
 import db from './config/db';
 import planillaRouter from "./routes/planillaRouter";
+import embutidosRouter from "./routes/embutidosRouter";
 
 export async function connectDB() {
     try {
@@ -47,8 +48,9 @@ app.use((req, res, next) => {
 });
 
 app.use('/api/planilla', planillaRouter)
+app.use('/api/embutidos', embutidosRouter);
 
-const PORT = 3000;
+const PORT = 3001;
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });

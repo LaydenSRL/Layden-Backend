@@ -3,7 +3,7 @@ import { supabase } from '../config/supabaseConfig';
 
 export const createEmbutido = async (req: Request, res: Response) => {
   try {
-    console.log('Body recibido:', req.body); // 🔹 importante
+    console.log('Body recibido:', req.body);
     const { data, error } = await supabase
       .from('embutidos')
       .insert([req.body])

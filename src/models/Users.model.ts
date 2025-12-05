@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, AllowNull, Default, HasMany } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, AllowNull, Default, HasMany, IsEmail } from 'sequelize-typescript';
 import Obras from './Planilla.model';
 
 @Table({ tableName: 'Users' })
@@ -15,6 +15,10 @@ class User extends Model {
   @Column({ type: DataType.STRING, allowNull: false })
   declare rol: string; // ejemplo: 'admin', 'vendedor', etc.
 
+  @IsEmail
+  @Column({ type: DataType.STRING, allowNull: false})
+  declare email: string
+
   @Default(true)
   @Column({ type: DataType.STRING })
   declare estado: string;
@@ -26,6 +30,10 @@ class User extends Model {
   @AllowNull(true)
   @Column({ type: DataType.DATE })
   declare updatedAt: Date | null;
+
+  @AllowNull(true)
+  @Column({ type: DataType.JSONB })
+  declare vendedores: string[];
 }
 
 export default User;

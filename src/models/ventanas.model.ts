@@ -67,6 +67,9 @@ class Ventanas extends Model {
 
   @Column({ type: DataType.DATE, allowNull: true })
   declare updatedAt: Date | null;
+
+  @Column({ type: DataType.BOOLEAN, defaultValue: false })
+  declare insumos: boolean;
 }
 
 export default Ventanas

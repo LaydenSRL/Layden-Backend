@@ -125,6 +125,9 @@ class Obras extends Model {
   @Column({ type: DataType.STRING, allowNull: false })
   declare clienteId: string
 
+  @Column({ type: DataType.STRING, allowNull: true })
+  declare numPresupuesto: string;
+
   @AllowNull(true)
   @Column({ type: DataType.DATE })
   declare createdAt: Date | null;

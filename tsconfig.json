@@ -8,6 +8,7 @@
     "target": "ESNext",
     "module": "CommonJS",
     "moduleResolution": "Node",
+    "ignoreDeprecations": "6.0",
     "strict": false,
     "sourceMap": true,
     "esModuleInterop": true,

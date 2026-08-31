@@ -70,6 +70,12 @@ class Ventanas extends Model {
 
   @Column({ type: DataType.BOOLEAN, defaultValue: false })
   declare insumos: boolean;
+
+  @Column({ type: DataType.STRING, allowNull: false, defaultValue: 'recto' })
+  declare forma: string;
+
+  @Column({ type: DataType.JSON, allowNull: true })
+  declare barrotillos: object | null;
 }
 
 export default Ventanas

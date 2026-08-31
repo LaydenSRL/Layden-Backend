@@ -2,27 +2,9 @@ import express from "express";
 import cors, { CorsOptions } from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import db from './config/db';
 import planillaRouter from "./routes/planillaRouter";
 import embutidosRouter from "./routes/embutidosRouter";
 import { requireAuth } from "./middleware/auth";
-
-export async function connectDB() {
-    try {
-        // alter:true reescribe el esquema para calzar con los modelos en cada
-        // arranque -util en desarrollo, pero riesgoso en producción (puede
-        // alterar columnas sin revision humana). Fuera de desarrollo solo
-        // verificamos la conexion; los cambios de esquema en producción se
-        // aplican a mano (ver migraciones/SQL).
-        const alter = process.env.NODE_ENV !== 'production';
-        await db.sync({ alter });
-        console.log(`Database synchronized${alter ? ' (alter=true, modo desarrollo)' : ''}`);
-    } catch (error) {
-        console.log('ERROR AL CONECTAR CON LA DB:', error);
-    }
-}
-
-connectDB();
 
 const app = express();
 

@@ -1,3 +1,8 @@
+// Tiene que ser el primer import: carga el .env antes de que cualquier otro
+// modulo (server.ts, supabaseConfig.ts, etc.) lea process.env al importarse.
+// Antes esto lo disparaba de rebote config.ts (via config/db.ts -> Sequelize),
+// que ya no existe.
+import 'dotenv/config'
 import app from './server'
 import http from 'http'
 

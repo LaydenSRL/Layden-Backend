@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import planillaRouter from "./routes/planillaRouter";
 import embutidosRouter from "./routes/embutidosRouter";
 import usersRouter from "./routes/usersRouter";
+import trialRouter from "./routes/trialRouter";
 import { requireAuth } from "./middleware/auth";
 
 const app = express();
@@ -51,5 +52,7 @@ app.use('/api', apiLimiter);
 app.use('/api/planilla', requireAuth, planillaRouter);
 app.use('/api/embutidos', requireAuth, embutidosRouter);
 app.use('/api/users', requireAuth, usersRouter);
+// Publica: es como se registra alguien que todavia no tiene cuenta.
+app.use('/api/trial-signup', trialRouter);
 
 export default app;

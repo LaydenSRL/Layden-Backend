@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # package-lock.json no esta versionado en este repo (ver .gitignore),
+      # asi que no se puede usar 'npm ci' aca -instala desde package.json.
+      - run: npm install
+
+      # tsc: si algo rompe el tipado del backend, esto falla antes de
+      # llegar a main.
+      - run: npm run build

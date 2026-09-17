@@ -20,9 +20,17 @@ const allowed_origins = [
     'https://layden.com.ar'
 ];
 
+// Vite cambia de puerto solo (5173, 5174, 5175...) si el de al lado ya
+// esta ocupado -paso todo el tiempo con varias sesiones/servidores locales
+// corriendo en paralelo. En produccion esto no aplica, ahi se respeta el
+// whitelist de arriba a rajatabla.
+const isLocalhostOrigin = (origin: string) => /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+
 const corsOptions: CorsOptions = {
     origin: function (origin, callback) {
-        if (!origin || allowed_origins.indexOf(origin) !== -1) {
+        const esDev = process.env.NODE_ENV !== 'production';
+
+        if (!origin || allowed_origins.indexOf(origin) !== -1 || (esDev && isLocalhostOrigin(origin))) {
             callback(null, true);
         } else {
             callback(new Error('Error de Cors'));

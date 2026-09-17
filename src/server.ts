@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import planillaRouter from "./routes/planillaRouter";
 import embutidosRouter from "./routes/embutidosRouter";
+import usersRouter from "./routes/usersRouter";
 import { requireAuth } from "./middleware/auth";
 
 const app = express();
@@ -49,5 +50,6 @@ app.use('/api', apiLimiter);
 // admin) se resuelve dentro de cada router/handler.
 app.use('/api/planilla', requireAuth, planillaRouter);
 app.use('/api/embutidos', requireAuth, embutidosRouter);
+app.use('/api/users', requireAuth, usersRouter);
 
 export default app;

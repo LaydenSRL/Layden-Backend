@@ -17,11 +17,18 @@ export const createEmbutido = async (req: Request, res: Response) => {
   }
 };
 
-export const getEmbutidos = async (_req: Request, res: Response) => {
+export const getEmbutidos = async (req: Request, res: Response) => {
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+  const offset = parseInt(req.query.offset as string) || 0;
+
   try {
-    const { data, error } = await supabase.from('embutidos').select('*').order('createdAt', { ascending: false });
+    const { data, error, count } = await supabase
+      .from('embutidos')
+      .select('*', { count: 'exact' })
+      .order('createdAt', { ascending: false })
+      .range(offset, offset + limit - 1);
     if (error) throw error;
-    res.status(200).json(data);
+    res.status(200).json({ data, count, limit, offset });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Error al obtener embutidos' });
   }
@@ -39,9 +46,14 @@ export const getEmbutidoById = async (req: Request, res: Response) => {
 
 export const updateEmbutido = async (req: Request, res: Response) => {
   try {
-    const { error } = await supabase.from('embutidos').update(req.body).eq('id', req.params.id);
+    const { data, error } = await supabase
+      .from('embutidos')
+      .update(req.body)
+      .eq('id', req.params.id)
+      .select()
+      .single();
     if (error) throw error;
-    res.status(200).json({ message: 'Embutido actualizado' });
+    res.status(200).json(data);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Error al actualizar embutido' });
   }

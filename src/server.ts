@@ -60,7 +60,8 @@ app.use('/api', apiLimiter);
 app.use('/api/planilla', requireAuth, planillaRouter);
 app.use('/api/embutidos', requireAuth, embutidosRouter);
 app.use('/api/users', requireAuth, usersRouter);
-// Publica: es como se registra alguien que todavia no tiene cuenta.
+// Sin requireAuth a nivel app: el POST es publico (asi pide la prueba alguien
+// que todavia no tiene cuenta). Ver/aprobar/rechazar lo protege trialRouter.
 app.use('/api/trial-signup', trialRouter);
 
 export default app;

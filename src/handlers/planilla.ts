@@ -13,7 +13,8 @@ export const createDatosObra = async (req: AuthedRequest, res: Response) => {
         direccion,
         localidad,
         ventanas,
-        observacionesObra
+        observacionesObra,
+        perfilera
     } = req.body;
 
     // clienteId nunca se toma del body: lo pone el token verificado por
@@ -37,6 +38,7 @@ export const createDatosObra = async (req: AuthedRequest, res: Response) => {
                 localidad,
                 clienteId,
                 observacionesObra,
+                perfilera: perfilera || 'muchtek',
                 createdAt: timestamp,
                 updatedAt: timestamp
             }])

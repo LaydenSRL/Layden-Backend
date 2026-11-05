@@ -10,7 +10,14 @@ export const validateTrialSignup = [
     body('nombre').trim().isLength({ min: 2 }).withMessage('El nombre debe tener al menos 2 caracteres.'),
     body('email').trim().toLowerCase().isEmail().withMessage('El email no es valido.'),
     body('numero').trim().isLength({ min: 6 }).withMessage('El numero de telefono no es valido.'),
+    // Consentimiento expreso (art. 5 Ley 25.326): la casilla del formulario.
+    body('aceptaPrivacidad').custom((v) => v === true).withMessage('Tenes que aceptar la Politica de Privacidad.'),
 ];
+
+// Las solicitudes ya resueltas se borran pasado este plazo (art. 4 inc. 7
+// Ley 25.326: no guardar datos que ya no hacen falta). Lo dice la Politica
+// de Privacidad del sitio: si se cambia aca, cambiarlo alla.
+const RETENCION_SOLICITUDES_DIAS = 180;
 
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, '\\$&');
 
@@ -41,7 +48,9 @@ export const createTrialRequest = async (req: Request, res: Response) => {
         return res.status(409).json({ error: 'Ya existe una cuenta con ese email.' });
     }
 
-    const { error: insertError } = await supabase.from(TABLE).insert({ nombre, email, numero });
+    const { error: insertError } = await supabase
+        .from(TABLE)
+        .insert({ nombre, email, numero, consentimientoAt: new Date().toISOString() });
 
     if (insertError) {
         // 23505 = unique_violation: ya hay una solicitud pendiente con ese email
@@ -59,6 +68,17 @@ export const createTrialRequest = async (req: Request, res: Response) => {
 
 // Solo admin (ver trialRouter): solicitudes pendientes, las mas viejas primero.
 export const listTrialRequests = async (_req: Request, res: Response) => {
+    // Limpieza de las resueltas viejas. Si falla no corta el listado.
+    const limite = new Date(Date.now() - RETENCION_SOLICITUDES_DIAS * 24 * 60 * 60 * 1000).toISOString();
+    const { error: purgeError } = await supabase
+        .from(TABLE)
+        .delete()
+        .neq('estado', 'pendiente')
+        .lt('resueltaAt', limite);
+    if (purgeError) {
+        console.error('Error borrando solicitudes de prueba viejas:', purgeError);
+    }
+
     const { data, error } = await supabase
         .from(TABLE)
         .select('*')

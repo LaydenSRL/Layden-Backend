@@ -68,3 +68,35 @@ export const createUserAdmin = async (req: AuthedRequest, res: Response) => {
 
     res.status(201).json(dbUser);
 };
+
+export const validateAcceptTerms = [
+    body('version').isString().trim().matches(/^\d{4}-\d{2}-\d{2}$/).withMessage('Version de terminos invalida.'),
+];
+
+// El propio usuario acepta los Terminos y la Politica de Privacidad (TermsGate
+// en el frontend). Se guarda version, fecha (del servidor, no del navegador) e
+// IP como constancia de la aceptacion.
+export const acceptTerms = async (req: AuthedRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ error: errors.array()[0].msg });
+    }
+
+    const { data, error } = await supabase
+        .from('Users')
+        .update({
+            terminosVersion: req.body.version,
+            terminosAceptadosAt: new Date().toISOString(),
+            terminosAceptadosIp: req.ip ?? null,
+        })
+        .eq('id', req.user!.id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error guardando la aceptacion de terminos:', error);
+        return res.status(500).json({ error: 'No se pudo registrar la aceptacion.' });
+    }
+
+    res.status(200).json(data);
+};

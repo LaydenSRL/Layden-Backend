@@ -50,3 +50,54 @@ export async function notifyTrialRequest(data: TrialRequestData): Promise<void> 
         console.error('No se pudo mandar el aviso de solicitud por EmailJS:', error);
     }
 }
+
+type BajaRequestData = {
+    codigo: string;
+    tipo: string;
+    nombre: string;
+    email: string;
+    motivo: string | null;
+};
+
+// Avisa al equipo de un pedido de arrepentimiento o de baja. Usa su propio
+// template (EMAILJS_BAJA_TEMPLATE_ID); sin el, solo queda en el Dashboard.
+export async function notifyBajaRequest(data: BajaRequestData): Promise<void> {
+    const {
+        EMAILJS_SERVICE_ID,
+        EMAILJS_BAJA_TEMPLATE_ID,
+        EMAILJS_PUBLIC_KEY,
+        EMAILJS_PRIVATE_KEY,
+        APP_URL,
+    } = process.env;
+
+    if (!EMAILJS_SERVICE_ID || !EMAILJS_BAJA_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY || !EMAILJS_PRIVATE_KEY) {
+        console.warn('EmailJS (bajas) no esta configurado: la solicitud quedo guardada pero no se mando el aviso.');
+        return;
+    }
+
+    try {
+        const response = await fetch(EMAILJS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                service_id: EMAILJS_SERVICE_ID,
+                template_id: EMAILJS_BAJA_TEMPLATE_ID,
+                user_id: EMAILJS_PUBLIC_KEY,
+                accessToken: EMAILJS_PRIVATE_KEY,
+                template_params: {
+                    ...data,
+                    motivo: data.motivo || '(sin motivo)',
+                    time: new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }),
+                    panel_url: `${APP_URL || 'https://layden.com.ar'}/dashboard`,
+                },
+            }),
+            signal: AbortSignal.timeout(8000),
+        });
+
+        if (!response.ok) {
+            console.error('EmailJS rechazo el aviso de baja:', response.status, await response.text());
+        }
+    } catch (error) {
+        console.error('No se pudo mandar el aviso de baja por EmailJS:', error);
+    }
+}

@@ -7,6 +7,7 @@ import embutidosRouter from "./routes/embutidosRouter";
 import usersRouter from "./routes/usersRouter";
 import trialRouter from "./routes/trialRouter";
 import ayudaRouter from "./routes/ayudaRouter";
+import bajasRouter from "./routes/bajasRouter";
 import { requireAuth } from "./middleware/auth";
 
 const app = express();
@@ -43,7 +44,10 @@ const corsOptions: CorsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+// El default de express es 100 KB: una obra de ~70 aberturas ya no se podia
+// guardar (413). 2 MB alcanza para obras de edificio de cientos de ventanas y
+// sigue debajo de los 4.5 MB que acepta Vercel por request.
+app.use(express.json({ limit: '2mb' }));
 
 // Limite general de requests por IP, para mitigar abuso/fuerza bruta contra
 // el API. 300 req / 5 min es holgado para uso normal de la app.
@@ -65,5 +69,7 @@ app.use('/api/ayuda', requireAuth, ayudaRouter);
 // Sin requireAuth a nivel app: el POST es publico (asi pide la prueba alguien
 // que todavia no tiene cuenta). Ver/aprobar/rechazar lo protege trialRouter.
 app.use('/api/trial-signup', trialRouter);
+// Igual que trial-signup: el POST (arrepentimiento / baja) es publico.
+app.use('/api/bajas', bajasRouter);
 
 export default app;

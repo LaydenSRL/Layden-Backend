@@ -13,7 +13,7 @@ const TIPOS_LINEA: TipoLinea[] = ['abrir', 'corrediza', 'sinHoja'];
 
 type LineaPerfil = { nombre: string; tipo: TipoLinea; marco: number; hoja: number };
 type TerminacionPerfil = { valor: string; espesor: number };
-type Perfilera = { id: string; nombre: string; logo?: string; lineas: LineaPerfil[]; terminaciones: TerminacionPerfil[] };
+type Perfilera = { id: string; nombre: string; logo?: string; lineas: LineaPerfil[]; terminaciones: TerminacionPerfil[]; terminacionInterior?: string; terminacionExterior?: string };
 
 const esTexto = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
 const esMedida = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 1000;
@@ -50,6 +50,12 @@ export const validarPerfileras = (lista: unknown): string | null => {
             if (!esMedida(t.espesor)) return `La terminacion "${t.valor}" necesita su espesor (en mm).`;
             if (valores.has(t.valor.trim())) return `La terminacion "${t.valor}" esta repetida en "${p.nombre}".`;
             valores.add(t.valor.trim());
+        }
+
+        // Terminaciones del acceso rapido: texto (vacio = ninguna) y, si hay, tiene que ser una de la perfilera.
+        for (const rapida of [p.terminacionInterior, p.terminacionExterior]) {
+            if (rapida === undefined || rapida === '') continue;
+            if (typeof rapida !== 'string' || !valores.has(rapida.trim())) return `La terminacion predeterminada de "${p.nombre}" no esta en su lista de terminaciones.`;
         }
     }
 

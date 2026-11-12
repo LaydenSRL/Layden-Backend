@@ -2,7 +2,31 @@ import { Response } from 'express';
 import { supabase } from '../config/supabaseConfig';
 import { AuthedRequest } from '../middleware/auth';
 
-export const createDatosObra = async (req: AuthedRequest, res: Response) => {
+// Columnas de una ventana que nunca se toman del body: las pone el backend.
+// Sin esto, un cliente podia mandar el datosObraId de una obra ajena o pisar
+// las fechas de auditoria.
+const limpiarVentana = (ventana: any) => {
+    const { id: _id, datosObraId: _obra, createdAt: _creada, updatedAt: _editada, ...resto } = ventana ?? {};
+    return resto;
+};
+
+// Columnas de Obras que el cliente puede modificar en un update.
+const COLUMNAS_EDITABLES_OBRA = new Set([
+    'vendedor',
+    'color',
+    'entrega',
+    'tipoDeObra',
+    'cliente',
+    'obra',
+    'direccion',
+    'localidad',
+    'observacionesObra',
+    'perfilera',
+    'numPresupuesto',
+    'insumosOverride',
+]);
+
+export const createDatosObra =async (req: AuthedRequest, res: Response) => {
     const {
         vendedor,
         color,
@@ -47,25 +71,37 @@ export const createDatosObra = async (req: AuthedRequest, res: Response) => {
 
         if (obraError) throw obraError;
 
-        if (ventanas && Array.isArray(ventanas)) {
+        let idsVentanas: number[] = [];
+
+        if (ventanas && Array.isArray(ventanas) && ventanas.length > 0) {
             const ventanasConObraId = ventanas.map((ventana: any) => ({
-                ...ventana,
+                ...limpiarVentana(ventana),
                 datosObraId: obraCreada.id,
                 createdAt: timestamp,
                 updatedAt: timestamp,
             }));
 
-            const { error: ventanasError } = await supabase
+            const { data: insertadas, error: ventanasError } = await supabase
                 .from('Ventanas')
-                .insert(ventanasConObraId);
+                .insert(ventanasConObraId)
+                .select('id');
 
-            if (ventanasError) throw ventanasError;
+            if (ventanasError) {
+                // Sin esto quedaba una obra vacia colgada en el listado.
+                await supabase.from('Obras').delete().eq('id', obraCreada.id);
+                throw ventanasError;
+            }
+            idsVentanas = (insertadas ?? []).map((v) => v.id);
         }
 
+        // `idsVentanas` (en el mismo orden en que llegaron las ventanas) le
+        // permite al front conocer los ids: sin ellos, el proximo guardado
+        // borraba y reinsertaba todas.
         res.status(201).json({
             success: true,
             message: 'Obra creada exitosamente',
             data: obraCreada,
+            idsVentanas,
         });
 
     } catch (error: any) {
@@ -104,22 +140,41 @@ const authorizeObraAccess = async (req: AuthedRequest, res: Response, obraId: st
 export const getDatosObras = async (req: AuthedRequest, res: Response) => {
     const { clienteId } = req.params;
 
-    // Paginado: sin parametros devuelve las primeras 50 (mas recientes),
-    // antes traia la tabla entera de un cliente en una sola respuesta.
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
-    const offset = parseInt(req.query.offset as string) || 0;
+    // Paginado de a 50 (tope 100). Antes el front pedia 200 obras con todas
+    // sus ventanas embebidas: con el uso la respuesta pasaba los 4.5 MB que
+    // acepta Vercel, y las obras de mas alla de la 200 no se podian ver ni
+    // buscar. Ahora el listado trae solo lo que muestra la tabla (la cantidad
+    // de ventanas, no las ventanas) y la busqueda corre aca, sobre todas.
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 100);
+    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    const ascendente = req.query.orden === 'asc';
+    // Se sacan los caracteres que rompen el filtro `or` de PostgREST (, ( ) ")
+    // y los comodines de LIKE, para que la busqueda sea siempre literal.
+    const busqueda = String(req.query.q ?? '').replace(/[%_\\,()"*:]/g, ' ').trim().slice(0, 100);
 
     try {
-        const { data, error, count } = await supabase
+        let query = supabase
             .from('Obras')
-            .select('*, Ventanas(*)', { count: 'exact' })
-            .eq('clienteId', clienteId)
-            .order('entrega', { ascending: false })
+            .select('id, numPresupuesto, cliente, obra, direccion, localidad, entrega, perfilera, Ventanas(count)', { count: 'exact' })
+            .eq('clienteId', clienteId);
+
+        if (busqueda) {
+            query = query.or(`obra.ilike.%${busqueda}%,cliente.ilike.%${busqueda}%`);
+        }
+
+        const { data, error, count } = await query
+            .order('entrega', { ascending: ascendente })
+            .order('id', { ascending: ascendente })
             .range(offset, offset + limit - 1);
 
         if (error) throw error;
 
-        res.status(200).json({ data, count, limit, offset });
+        const obras = (data ?? []).map(({ Ventanas, ...obra }: any) => ({
+            ...obra,
+            cantVentanas: Ventanas?.[0]?.count ?? 0,
+        }));
+
+        res.status(200).json({ data: obras, count, limit, offset });
     } catch (error: any) {
         console.error('Error al obtener datos de obras:', error);
         res.status(500).json({ error: error.message || 'Error al obtener datos de obras' });
@@ -162,21 +217,38 @@ export const getDatosObraById = async (req: AuthedRequest, res: Response) => {
 export const updateDatosObra = async (req: AuthedRequest, res: Response) => {
     const { id } = req.params;
     // clienteId tampoco se acepta en el update: no se puede "transferir"
-    // una obra a otro cliente mandando un clienteId distinto en el body.
-    const { ventanas, clienteId: _ignored, ...datosObraData } = req.body;
+    // una obra a otro cliente mandando un clienteId distinto en el body. Lo
+    // mismo con id y las fechas, que las maneja el backend.
+    // `version` es el updatedAt que el front tenia al abrir la obra (ver mas abajo).
+    const {
+        ventanas,
+        version,
+        clienteId: _ignored,
+        id: _id,
+        createdAt: _creada,
+        updatedAt: _editada,
+        ...resto
+    } = req.body;
+
+    // Solo pasan columnas conocidas de Obras. Antes se mandaba el body entero
+    // y cualquier campo de mas (o una columna sin migrar) hacia fallar el
+    // PATCH con PGRST204 "column not found".
+    const datosObraData = Object.fromEntries(
+        Object.entries(resto ?? {}).filter(([campo]) => COLUMNAS_EDITABLES_OBRA.has(campo))
+    );
 
     try {
         const obra = await authorizeObraAccess(req, res, id);
         if (!obra) return;
 
-        const { error: errorUpdateObra } = await supabase
-            .from('Obras')
-            .update(datosObraData)
-            .eq('id', id);
+        const listaVentanas: any[] | null = Array.isArray(ventanas) ? ventanas : null;
+        let idsActuales: number[] = [];
 
-        if (errorUpdateObra) throw errorUpdateObra;
-
-        if (ventanas && Array.isArray(ventanas)) {
+        // Se valida ANTES de escribir nada: cada id de ventana que llega tiene
+        // que ser de esta obra. Antes el upsert aceptaba cualquier id, y con el
+        // de una ventana de otro cliente se la "mudaba" a esta obra (se la
+        // robaba y desaparecia de la obra original).
+        if (listaVentanas) {
             const { data: existentes, error: errorExistentes } = await supabase
                 .from('Ventanas')
                 .select('id')
@@ -184,39 +256,106 @@ export const updateDatosObra = async (req: AuthedRequest, res: Response) => {
 
             if (errorExistentes) throw errorExistentes;
 
-            const idsActuales = existentes.map((v) => v.id);
-            const idsEnviados = ventanas.filter(v => v.id).map(v => v.id);
-            const paraEliminar = idsActuales.filter(vId => !idsEnviados.includes(vId));
+            idsActuales = (existentes ?? []).map((v) => v.id);
+            const idsEnviados = listaVentanas.filter((v) => v?.id != null).map((v) => v.id);
 
-            // Un solo upsert en vez de un update por ventana (evita N+1
-            // queries en obras con muchas ventanas): las que tienen id
-            // existente se actualizan, las que no, se insertan.
-            const ventanasConObraId = ventanas.map(v => ({
-                ...v,
-                datosObraId: id,
-            }));
+            if (new Set(idsEnviados).size !== idsEnviados.length) {
+                return res.status(400).json({ error: 'Hay ventanas repetidas en la obra.' });
+            }
+            if (idsEnviados.some((vId) => !idsActuales.includes(vId))) {
+                return res.status(400).json({ error: 'Alguna de las ventanas no pertenece a esta obra.' });
+            }
+        }
 
-            if (ventanasConObraId.length > 0) {
+        // Control de version: el update solo pasa si la obra sigue como la
+        // abrio el usuario (mismo updatedAt). Si otra persona del taller, otra
+        // pestaña o un doble click en "Guardar" ya la guardo en el medio, este
+        // update no matchea ninguna fila y se responde 409 en vez de pisar o
+        // duplicar las ventanas. Postgres bloquea la fila, asi que de dos
+        // guardados simultaneos pasa uno solo.
+        const nuevaVersion = new Date().toISOString();
+        let updateObra = supabase
+            .from('Obras')
+            .update({ ...datosObraData, updatedAt: nuevaVersion })
+            .eq('id', id);
+
+        if (version) {
+            updateObra = updateObra.eq('updatedAt', version);
+        }
+
+        const { data: obraActualizada, error: errorUpdateObra } = await updateObra.select('id');
+
+        if (errorUpdateObra) {
+            // PGRST204: la columna no existe en la base (falta correr una
+            // migracion de Backend/sql). Se devuelve 400 con el detalle en vez
+            // de un 500 generico.
+            if (errorUpdateObra.code === 'PGRST204') {
+                console.error('Columna faltante en Obras (correr la migracion pendiente):', errorUpdateObra.message);
+                return res.status(400).json({
+                    error: 'La base de datos no tiene una de las columnas que se intentó guardar. Avisale al administrador.',
+                    detalle: errorUpdateObra.message,
+                });
+            }
+            throw errorUpdateObra;
+        }
+
+        if (!obraActualizada || obraActualizada.length === 0) {
+            return res.status(409).json({
+                error: 'Esta obra se guardó desde otro lugar mientras la editabas. Volvé a abrirla para ver los últimos cambios.',
+            });
+        }
+
+        let idsNuevos: number[] = [];
+
+        if (listaVentanas) {
+            const idsEnviados = listaVentanas.filter((v) => v?.id != null).map((v) => v.id);
+            const paraEliminar = idsActuales.filter((vId) => !idsEnviados.includes(vId));
+
+            // Existentes y nuevas van por separado: en un upsert mezclado,
+            // supabase-js manda id = null en las nuevas y Postgres lo rechaza.
+            const existentes = listaVentanas
+                .filter((v) => v?.id != null)
+                .map((v) => ({ ...limpiarVentana(v), id: v.id, datosObraId: id, updatedAt: nuevaVersion }));
+            const nuevas = listaVentanas
+                .filter((v) => v?.id == null)
+                .map((v) => ({ ...limpiarVentana(v), datosObraId: id, createdAt: nuevaVersion, updatedAt: nuevaVersion }));
+
+            if (existentes.length > 0) {
                 const { error: errorUpsert } = await supabase
                     .from('Ventanas')
-                    .upsert(ventanasConObraId, { onConflict: 'id' });
+                    .upsert(existentes, { onConflict: 'id' });
 
                 if (errorUpsert) throw errorUpsert;
+            }
+
+            if (nuevas.length > 0) {
+                const { data: insertadas, error: errorInsert } = await supabase
+                    .from('Ventanas')
+                    .insert(nuevas)
+                    .select('id');
+
+                if (errorInsert) throw errorInsert;
+                idsNuevos = (insertadas ?? []).map((v) => v.id);
             }
 
             if (paraEliminar.length > 0) {
                 const { error: errorDelete } = await supabase
                     .from('Ventanas')
                     .delete()
+                    .eq('datosObraId', id)
                     .in('id', paraEliminar);
 
                 if (errorDelete) throw errorDelete;
             }
         }
 
+        // `version` es la que el front tiene que mandar en el proximo guardado;
+        // `idsNuevos` son los ids de las ventanas sin id, en el orden en que llegaron.
         res.status(200).json({
             success: true,
             message: 'Obra actualizada exitosamente',
+            version: nuevaVersion,
+            idsNuevos,
         });
     } catch (error: any) {
         console.error('Error al actualizar datos de la obra:', error);
